@@ -15,11 +15,15 @@ class WeatherService {
     };
 
     let url = encodeURI(`http://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${this.token}`);
-    let resCoord = await axios.get(url);
-    if (resCoord.status == 200) {
-      res.lat = resCoord.data.coord.lat;
-      res.lon = resCoord.data.coord.lon;
-    }
+    try {
+      let resCoord = await axios.get(url);
+      if (resCoord.status == 200) {
+        res.lat = resCoord.data.coord.lat;
+        res.lon = resCoord.data.coord.lon;
+      }  
+    } catch (error) {
+      console.log(error);
+    }    
 
     return res;
   }
@@ -28,6 +32,7 @@ class WeatherService {
     let url = '';
     let lat = 0;
     let lon = 0;
+    const result = [];
     
     if (city) {
       const coord = await this.getCoordCity(city);
@@ -38,6 +43,10 @@ class WeatherService {
       lon = location.lon;
     }
 
+    if (lon === 0 && lat === 0) {
+      return result;
+    }
+
     url = encodeURI(`http://api.openweathermap.org/data/2.5/onecall?lat=${lat}&lon=${lon}&appid=${this.token}&lang=ua&units=metric&exclude=hourly,minutely`);
 
     const res = await axios.get(url);
@@ -46,11 +55,7 @@ class WeatherService {
     const iconId = forecast.current.weather[0].id;
     const description = forecast.current.weather[0].description;
     const temp = forecast.current.temp;
-    const humidity = forecast.current.humidity;
-    
-
-    const result = [];
-    
+    const humidity = forecast.current.humidity;    
 
     forecast.daily.forEach(element => {
       const day = new Date(element.dt * 1000).toLocaleDateString();

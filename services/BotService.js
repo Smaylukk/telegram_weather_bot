@@ -10,14 +10,16 @@ class BotService {
   constructor(bot){
     this.bot = bot || new TelegramBot(tokens.TELEGRAM_TOKEN, { polling: true });
     this.addCityList = [];
+    this.forecastList = [];
   }
 
   commandsForecast() {
     const keyboard = Keyboard.make([
+      Key.callback('Прогноз', 'forecast'),
       Key.callback('Додати місто', 'addSity'),
       Key.callback('Мої міста', 'addSity'),
       Key.location('Відправити мою локацію')], 
-      {columns: 2}).reply();
+      {columns: 3}).reply();
 
     return keyboard;
   }
@@ -31,9 +33,7 @@ class BotService {
     const keyboard = Keyboard.make(buttons, {columns: 1}).inline();
 
     return keyboard;
-  }
-
-  
+  }  
 
   async botStartHandler(msg){
     const chatId = msg.chat.id;
@@ -57,20 +57,14 @@ class BotService {
     this.bot.sendMessage(chatId, 'Введіть назву вашого міста');
   }
 
-  async botMyCitytHandler(msg) {
+  async botForecastHandler(msg) {
     const chatId = msg.chat.id;
-    let cities = [];
-    try {
-      cities = await userService.getSitiesUser(chatId);
-    } catch (error) {
-      console.log(error);
-    }
+    this.forecastList.push(chatId);
 
-    const keyboard = this.commandsMyCities(cities);
-    this.bot.sendMessage(chatId, 'Виберіть ваше місто', keyboard);
+    this.bot.sendMessage(chatId, 'Введіть назву вашого міста');
   }
 
-  async botDeleteMyCitytHandler(msg) {
+  async botMyCitytHandler(msg) {
     const chatId = msg.chat.id;
     let cities = [];
     try {
@@ -91,31 +85,42 @@ class BotService {
         val !== chatId;
       });
 
+      if (city) {
+        try {
+          await userService.addCity(chatId, city);
+        } catch (error) {
+          console.log(error);
+        }
+      }
+
       this.sendForecastCity(chatId, city);
-    }else{
+    } else if (this.forecastList.includes(chatId)) {
+      this.forecastList = this.forecastList.filter((val) => {
+        val !== chatId;
+      });
+
+      this.sendForecastCity(chatId, city);
+    } else {
       this.bot.sendMessage(chatId, 'Невідома команда');
     }    
   }
 
   async sendForecastCity(chatId, city=null, location=null) {
-    if (city) {
-      try {
-        await userService.addCity(chatId, city);
-      } catch (error) {
-        console.log(error);
-      }
-    }
     const forecast = await weatherService.getForecastCity(city, location);
     
-    let forecastText = `Прогноз погоди ${forecast.cityName === null ? 'за вашими координатами': ' в ' + city}:`;
-    forecast.forEach(element => {
-      let emo = this.getWeatherEmo(element.iconId);
+    if (forecast.length) {
+      let forecastText = `Прогноз погоди ${forecast.cityName === null ? 'за вашими координатами' : ' в ' + city}:`;
+      forecast.forEach(element => {
+        let emo = this.getWeatherEmo(element.iconId);
 
-      forecastText +=`
+        forecastText += `
       📅 ${element.day} - ${emo} ${Math.round(element.temp_day)}/${Math.round(element.temp_night)}°C - ${element.description}`;
-    })
-          
-    this.bot.sendMessage(chatId, forecastText);
+      })
+
+      this.bot.sendMessage(chatId, forecastText);
+    } else {
+      this.bot.sendMessage(chatId, `Місто ${city} не знайдено`);
+    }
 
     const keyboard = this.commandsForecast();
     this.bot.sendMessage(chatId, 'Виберіть наступну дію', keyboard);

@@ -33,6 +33,9 @@ const start = async () => {
         case 'Додати місто':
           botService.botAddCitytHandler(msg);
           break;
+        case 'Прогноз':
+          botService.botForecastHandler(msg);
+          break;
         case 'Мої міста':
           botService.botMyCitytHandler(msg);
           break;
