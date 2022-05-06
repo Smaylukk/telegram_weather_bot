@@ -8,47 +8,62 @@ class WeatherService {
     this.token = tokens.WEATHER_TOKEN;
   }
 
+  async getCoordCity(city){
+    let res = {
+      lat: 0,
+      lon: 0
+    };
+
+    let url = encodeURI(`http://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${this.token}`);
+    let resCoord = await axios.get(url);
+    if (resCoord.status == 200) {
+      res.lat = resCoord.data.coord.lat;
+      res.lon = resCoord.data.coord.lon;
+    }
+
+    return res;
+  }
+
   async getForecastCity(city, location){
     let url = '';
+    let lat = 0;
+    let lon = 0;
+    
     if (city) {
-      url = encodeURI(`http://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${this.token}&lang=ua&units=metric`);
+      const coord = await this.getCoordCity(city);
+      lat = coord.lat;
+      lon = coord.lon;
     }else{
-      url = encodeURI(`http://api.openweathermap.org/data/2.5/weather?lat=${location.latitude}&lon=${location.longitude}&appid=${this.token}&lang=ua&units=metric`);
+      lat = location.lat;
+      lon = location.lon;
     }
+
+    url = encodeURI(`http://api.openweathermap.org/data/2.5/onecall?lat=${lat}&lon=${lon}&appid=${this.token}&lang=ua&units=metric&exclude=hourly,minutely`);
 
     const res = await axios.get(url);
     const forecast = res.data;
     
-    const iconUrl = `http://openweathermap.org/img/w/${forecast.weather[0].icon}.png`;
-    const iconName = `${forecast.weather[0].icon}.png`;
-    const fileName = path.resolve(__dirname, 'files', iconName)
-    await this.downloadFile(iconUrl, fileName);
+    const iconId = forecast.current.weather[0].id;
+    const description = forecast.current.weather[0].description;
+    const temp = forecast.current.temp;
+    const humidity = forecast.current.humidity;
+    
 
-    const description = forecast.weather[0].description;
-    const temp = forecast.main.temp;
-    const humidity = forecast.main.humidity;
-    const cityName = forecast.name;
+    const result = [];
+    
 
-    return{
-      description,
-      iconUrl,
-      iconName,
-      temp,
-      humidity,
-      cityName,
-      fileName
-    }
+    forecast.daily.forEach(element => {
+      const day = new Date(element.dt * 1000).toLocaleDateString();
+      result.push({
+        day: day,
+        description: element.weather[0].description,
+        temp_day: element.temp.day,
+        temp_night: element.temp.night,
+        iconId: element.weather[0].id
+      });
+    });
 
-  }
-
-  async downloadFile(url, fileName) {
-    const ws = fs.createWriteStream(fileName);
-    axios.get(url, {responseType: 'stream'})
-    .then((res) => {
-      res.data.pipe(ws);
-    }, rej => {
-      console.log(rej.data);
-    })
+    return result;
   }
 }
 

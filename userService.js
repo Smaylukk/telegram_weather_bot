@@ -21,6 +21,12 @@ class UserService {
     return [];
   }
 
+  async clearAllSitiesUser(chatId) {
+    const user = await User.findOneAndUpdate(
+      { chatId },
+      {cities: []});
+  }
+
   async addCity(chatId, city) {
     const user = await User.findOne({ chatId });
     if (user) {

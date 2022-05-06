@@ -12,6 +12,7 @@
   "license": "ISC",
   "dependencies": {
     "axios": "^0.27.2",
+    "dotenv": "^16.0.0",
     "mongoose": "^6.3.2",
     "node-telegram-bot-api": "^0.57.0",
     "telegram-keyboard": "^2.3.0"

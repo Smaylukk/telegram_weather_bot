@@ -71,5 +71,5 @@ const start = async () => {
 
   });
 }
-bot.sendPhoto('', '', {}, {contentType:''})
+//bot.sendPhoto('', '', {}, {contentType:''})
 start();

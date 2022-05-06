@@ -16,8 +16,8 @@ class BotService {
     const keyboard = Keyboard.make([
       Key.callback('Додати місто', 'addSity'),
       Key.callback('Мої міста', 'addSity'),
-      Key.location('Відправити мою локацію'),
-    ]).reply();
+      Key.location('Відправити мою локацію')], 
+      {columns: 2}).reply();
 
     return keyboard;
   }
@@ -26,16 +26,24 @@ class BotService {
     const buttons = cities.map(el => {
       return Key.callback(el, el);
     })
-    const keyboard = Keyboard.make(buttons).inline();
+
+    buttons.unshift(Key.callback('Очистити список', 'clearAll'));
+    const keyboard = Keyboard.make(buttons, {columns: 1}).inline();
 
     return keyboard;
   }
+
+  
 
   async botStartHandler(msg){
     const chatId = msg.chat.id;
     const username = msg.from.first_name ? msg.from.first_name : msg.from.username;
 
-    await userService.createUser(chatId, username);
+    try {
+      await userService.createUser(chatId, username);
+    } catch (error) {
+      console.log(error);
+    }    
 
     const keyboard = this.commandsForecast();
     this.bot.sendMessage(chatId, `Вітаю ${username}. Вас вітає бот прогнозу погоди.`);
@@ -51,9 +59,26 @@ class BotService {
 
   async botMyCitytHandler(msg) {
     const chatId = msg.chat.id;
-    const cities = await userService.getSitiesUser(chatId);
+    let cities = [];
+    try {
+      cities = await userService.getSitiesUser(chatId);
+    } catch (error) {
+      console.log(error);
+    }
 
-    console.log(cities);
+    const keyboard = this.commandsMyCities(cities);
+    this.bot.sendMessage(chatId, 'Виберіть ваше місто', keyboard);
+  }
+
+  async botDeleteMyCitytHandler(msg) {
+    const chatId = msg.chat.id;
+    let cities = [];
+    try {
+      cities = await userService.getSitiesUser(chatId);
+    } catch (error) {
+      console.log(error);
+    }
+
     const keyboard = this.commandsMyCities(cities);
     this.bot.sendMessage(chatId, 'Виберіть ваше місто', keyboard);
   }
@@ -69,31 +94,68 @@ class BotService {
       this.sendForecastCity(chatId, city);
     }else{
       this.bot.sendMessage(chatId, 'Невідома команда');
-    }
-    
+    }    
   }
 
   async sendForecastCity(chatId, city=null, location=null) {
-    
     if (city) {
-      await userService.addCity(chatId, city);
+      try {
+        await userService.addCity(chatId, city);
+      } catch (error) {
+        console.log(error);
+      }
     }
     const forecast = await weatherService.getForecastCity(city, location);
     
-    const forecastText =
-      `Прогноз погоди в ${forecast.cityName}:
-      ${forecast.description}
-      Тепература: ${forecast.temp}С
-      Вологість: ${forecast.humidity}`;
+    let forecastText = `Прогноз погоди ${forecast.cityName === null ? 'за вашими координатами': ' в ' + city}:`;
+    forecast.forEach(element => {
+      let emo = this.getWeatherEmo(element.iconId);
 
-    console.log(forecast.fileName);
-    const rs = fs.readFileSync(forecast.fileName);
-      
-    this.bot.sendPhoto(
-      chatId,
-      //forecast.fileName,
-      rs,
-      { caption: forecastText });
+      forecastText +=`
+      📅 ${element.day} - ${emo} ${Math.round(element.temp_day)}/${Math.round(element.temp_night)}°C - ${element.description}`;
+    })
+          
+    this.bot.sendMessage(chatId, forecastText);
+
+    const keyboard = this.commandsForecast();
+    this.bot.sendMessage(chatId, 'Виберіть наступну дію', keyboard);
+  }
+
+  getWeatherEmo(code) {
+    if (code >= 200 && code <= 232) {
+      return '⛈';
+    } else if (code >= 300 && code <= 321) {
+      return '🌧';
+    } else if (code >= 500 && code <= 504) {
+      return '🌦';
+    } else if (code === 511) {
+      return '❄';
+    } else if (code >= 520 && code <= 531) {
+      return '🌧';
+    } else if (code >= 600 && code <= 622) {
+      return '❄';
+    } else if (code >= 701 && code <= 781) {
+      return '🌫';
+    } else if (code === 800) {
+      return '🌞';
+    } else if (code === 801) {
+      return '⛅';
+    } else if (code >= 802 && code <= 804) {
+      return '☁';
+    } else {
+      return '';
+    }
+  }
+
+  async clearAllCities(chatId){
+    try {
+      await userService.clearAllSitiesUser(chatId);
+
+      this.bot.sendMessage(chatId, 'Список ваших міст очищено');
+    } catch (error) {
+      this.bot.sendMessage(chatId, 'Виникла помилка під час операції');
+      console.log(error);
+    }
 
     const keyboard = this.commandsForecast();
     this.bot.sendMessage(chatId, 'Виберіть наступну дію', keyboard);
@@ -102,8 +164,12 @@ class BotService {
   async botCallbackHandler(msg){
     const chatId = msg.message.chat.id;
     const city = msg.data;
-      
-    this.sendForecastCity(chatId, city);
+
+    if (city === 'clearAll') {
+      this.clearAllCities(chatId);
+    }else{
+      this.sendForecastCity(chatId, city);
+    }
   }
 
   async botLocationHandler(msg) {
