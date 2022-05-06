@@ -1,7 +1,7 @@
 const { default: mongoose } = require('mongoose');
 const TelegramBot = require('node-telegram-bot-api');
-const tokens = require('./env');
-const BotService = require('./BotService');
+const tokens = require('./services/env');
+const BotService = require('./services/BotService');
 
 const bot = new TelegramBot(tokens.TELEGRAM_TOKEN, { polling: true });
 const botService = new BotService(bot);
