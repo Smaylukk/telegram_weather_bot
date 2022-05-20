@@ -39,8 +39,8 @@ class WeatherService {
       lat = coord.lat;
       lon = coord.lon;
     }else{
-      lat = location.lat;
-      lon = location.lon;
+      lat = location.latitude;
+      lon = location.longitude;
     }
 
     if (lon === 0 && lat === 0) {

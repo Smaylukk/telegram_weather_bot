@@ -109,7 +109,7 @@ class BotService {
     const forecast = await weatherService.getForecastCity(city, location);
     
     if (forecast.length) {
-      let forecastText = `Прогноз погоди ${forecast.cityName === null ? 'за вашими координатами' : ' в ' + city}:`;
+      let forecastText = `Прогноз погоди ${city === null ? 'за вашими координатами' : ' в ' + city}:`;
       forecast.forEach(element => {
         let emo = this.getWeatherEmo(element.iconId);
 
